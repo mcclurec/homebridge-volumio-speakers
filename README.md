@@ -4,17 +4,16 @@
 </p>
 
 
-# Homebridge Roon Outputs
+# Homebridge Volumio Speakers
 
-Add your Roon Outputs to Apple Homekit. This platform plugin uses the [Roon Node API](https://github.com/RoonLabs/node-roon-api) and
-the [SmartSpeaker](https://developers.homebridge.io/#/service/SmartSpeaker) service to automatically create accessories from
-all your Roon outputs that show up as real speakers in Homekit. 
+Add your Volumio zones to Apple Homekit. This platform plugin uses the [SmartSpeaker](https://developers.homebridge.io/#/service/SmartSpeaker) service to automatically create accessories from
+all your Volumio zones that show up as real speakers in Homekit. 
 
 ## Functionality
 
 **You must have iOS 13.4 or later.**
 
-All your outputs (non-private) will show up in Homekit (after you add them one by one, see instructions below).
+All your zones (non-private) will show up in Homekit (after you add them one by one, see instructions below).
 
 Currently the `SmartSpeaker` service is extremely limited and it only has the following functionality:
 
@@ -29,24 +28,24 @@ somewhat slim) that we'll also be able to control volume and other transport con
 Install via NPM globally:
 
 ```
-sudo npm install -g --unsafe-perm homebridge-roon-outputs
+sudo npm install -g --unsafe-perm homebridge-volumio-speakers
 ```
 
-Alternatively you can install this through [Homebridge Config UI X](https://www.npmjs.com/package/homebridge-config-ui-x). Just search for `homebridge-roon-outputs`.
+Alternatively you can install this through [Homebridge Config UI X](https://www.npmjs.com/package/homebridge-config-ui-x). Just search for `homebridge-volumio-speakers`.
 
 Take a look at the [Homebridge Wiki](https://github.com/homebridge/homebridge/wiki) for help installing Homebridge if you
 haven't already.
 
 ## Configuration
 
-Add the `RoonOutputs` platform to your `config.json`:
+Use the Homebridge Config UI X `Settings` link, or add the `Volumio Speakers` platform manually to your `config.json`:
 
 ```json
 {
     "platforms": [
         {
-            "platform": "RoonOutputs",
-            "postfix": "Roon output"
+            "platform": "Volumio Speakers",
+            "serverURL": "http://volumio.local"
         }
     ]
 }
@@ -56,17 +55,14 @@ You can use the following options in your homebridge config:
 
 Variable | Optional/Required | Description
 -------- | ----------------- | -----------
-`platform` | **required** | Must be `RoonOutputs`.
-`postfix` | optional | Allows you to add a word after your output name that will show up in Homekit. Defaults to `Speaker`, set as `""` to leave blank.
+`platform` | **required** | Must be `Volumio Speakers`.
+`serverURL` | **required** | The url of one of your Volumio servers. Other servers/zones will be auto discovered from there.
 
 ## How to use
 
 Once configured, restart Homebridge and keep an eye on the logs.
 
-You will need to enable the extension in Roon before you can use it. Head over to the "Extensions"
-page in Roon settings, and hit "Enable" next to the "Homebridge RoonOutputs" extension.
-
-Then in the Homebridge logs, you should see all your outputs get accessories created for them.
+Then in the Homebridge logs, you should see all your zones get accessories created for them.
 
 The final step is to add each output accessory to Homekit, manually. To do this:
  
@@ -75,4 +71,4 @@ The final step is to add each output accessory to Homekit, manually. To do this:
 3. You should see all your outputs listed on "Nearby Accessories"
 4. Hit the first one, then hit "Add anyway", then enter the code provided by Homebridge (check your Homebridge logs).
 5. On the final screen, just hit "Done". You can now add the speaker to one of your rooms by long pressing it and using the edit cog.
-6. Repeat for each output.
+6. Repeat for each zone.
