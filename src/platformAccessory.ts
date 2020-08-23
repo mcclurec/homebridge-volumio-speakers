@@ -6,9 +6,14 @@ import {
   CharacteristicSetCallback,
   CharacteristicEventTypes,
 } from 'homebridge';
-
 import { PluginPlatform } from './platform';
-import { getVolumioAPIData, volumeClamp, VolumioAPICommandResponse, VolumioAPIState } from './utils';
+import { 
+  getVolumioAPIData,
+  volumeClamp,
+  VolumioAPICommandResponse,
+  VolumioAPIState,
+  VolumioAPIStatus,
+} from './utils';
 
 /**
  * Volumio Speakers Platform Accessory.
@@ -66,11 +71,11 @@ export class PluginPlatformAccessory {
   async getZoneState(): Promise<VolumioAPIState> {
     const zone = this.accessory.context.zone;
     const defaultData: VolumioAPIState = {
-      status: 'stop',
+      status: VolumioAPIStatus.STOP,
       volume: 0,
       mute: false,
     };
-    // If the output/zone doesn't exist for any reason (such as from being grouped, return stopped).
+    // If the zone doesn't exist for any reason, return stopped
     if (!zone) {
       return defaultData;
     }
@@ -111,11 +116,16 @@ export class PluginPlatformAccessory {
  * Toggle play/pause
  */
   async setTargetMediaState(value: CharacteristicValue, callback: CharacteristicSetCallback) {
+    const convertedState = this.convertCharacteristicValueToVolumioStatus(value);
+
+    this.platform.log.info('Triggered SET TargetMediaState - raw state:', value);
+    this.platform.log.info('Triggered SET TargetMediaState - converted state:', convertedState);
+
     this.targetMediaState = value;
     this.platform.log.debug('Triggered SET TargetMediaState:', value);
 
     const zone = this.accessory.context.zone;
-    const url = `${zone.host}/api/v1/commands/?cmd=toggle`;
+    const url = `${zone.host}/api/v1/commands/?cmd=${convertedState}`;
     const { error, data } = await getVolumioAPIData<VolumioAPICommandResponse>(url);
 
     if (error || !data) {
@@ -190,16 +200,35 @@ export class PluginPlatformAccessory {
     callback(undefined, this.muted);
   }
 
-  convertVolumioStatusToCharacteristicValue(status: string): CharacteristicValue {
+  /**
+  * Map VolumioAPIStatus -> CharacteristicValue
+  */
+  convertVolumioStatusToCharacteristicValue(status: VolumioAPIStatus): CharacteristicValue {
     // These are the state strings returned by Volumio
     switch (status) {
-      case 'play':
+      case VolumioAPIStatus.PLAY:
         return this.platform.Characteristic.CurrentMediaState.PLAY;
-      case 'pause':
+      case VolumioAPIStatus.PAUSE:
         return this.platform.Characteristic.CurrentMediaState.PAUSE;
-      case 'stop':
+      case VolumioAPIStatus.STOP:
       default:
         return this.platform.Characteristic.CurrentMediaState.STOP;
+    }
+  }
+  
+  /**
+  * Map CharacteristicValue -> VolumioAPIStatus
+  */
+  convertCharacteristicValueToVolumioStatus(status: CharacteristicValue): VolumioAPIStatus {
+    // These are the state strings returned by Volumio
+    switch (status) {
+      case this.platform.Characteristic.CurrentMediaState.PLAY:
+        return VolumioAPIStatus.PLAY;
+      case this.platform.Characteristic.CurrentMediaState.PAUSE:
+        return VolumioAPIStatus.PAUSE;
+      case this.platform.Characteristic.CurrentMediaState.STOP:
+      default:
+        return VolumioAPIStatus.STOP;
     }
   }
   
@@ -212,13 +241,13 @@ export class PluginPlatformAccessory {
 
     // These are the state strings returned by Volumio
     switch (data.response) {
-      case 'play Success':
+      case `${VolumioAPIStatus.PLAY} Success`:
         state = this.platform.Characteristic.CurrentMediaState.PLAY;
         break;
-      case 'pause Success':
+      case `${VolumioAPIStatus.PAUSE} Success`:
         state = this.platform.Characteristic.CurrentMediaState.PAUSE;
         break;
-      case 'stop Success':
+      case `${VolumioAPIStatus.STOP} Success`:
       default:
         state = this.platform.Characteristic.CurrentMediaState.STOP;
         break;

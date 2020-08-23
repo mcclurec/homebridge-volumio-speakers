@@ -62,7 +62,7 @@ export function volumeClamp(volume: number): number {
 }
 
 export interface VolumioAPIState {
-  status: string;
+  status: VolumioAPIStatus;
   position?: number;
   title?: string;
   artist?: string;
@@ -107,4 +107,10 @@ export interface VolumioAPICommandResponse {
 export interface GetVolumioAPIData<T> {
   error: Error | null;
   data?: T;
+}
+
+export enum VolumioAPIStatus {
+  PLAY = 'play',
+  PAUSE = 'pause',
+  STOP = 'stop',
 }
