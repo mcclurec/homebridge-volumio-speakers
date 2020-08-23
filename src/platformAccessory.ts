@@ -118,9 +118,6 @@ export class PluginPlatformAccessory {
   async setTargetMediaState(value: CharacteristicValue, callback: CharacteristicSetCallback) {
     const convertedState = this.convertCharacteristicValueToVolumioStatus(value);
 
-    this.platform.log.info('Triggered SET TargetMediaState - raw state:', value);
-    this.platform.log.info('Triggered SET TargetMediaState - converted state:', convertedState);
-
     this.targetMediaState = value;
     this.platform.log.debug('Triggered SET TargetMediaState:', value);
 
