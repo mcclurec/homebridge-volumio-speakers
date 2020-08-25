@@ -5,6 +5,7 @@ import {
   CharacteristicGetCallback,
   CharacteristicSetCallback,
   CharacteristicEventTypes,
+  Logger,
 } from 'homebridge';
 import { PluginPlatform } from './platform';
 import { 
@@ -27,11 +28,20 @@ export class PluginPlatformAccessory {
   private service: Service;
   private socket: SocketIOClient.Socket;
   private zoneState: ZoneState;
+  private log: Logger;
 
   constructor(
     private readonly platform: PluginPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
+    const logPrefix = `${this.accessory.context.zone.name}:`;
+    this.log = <Logger>{
+      info: (...args) => this.platform.log.info(logPrefix, ...args),
+      debug: (...args) => this.platform.log.debug(logPrefix, ...args),
+      warn: (...args) => this.platform.log.warn(logPrefix, ...args),
+      error: (...args) => this.platform.log.error(logPrefix, ...args),
+    };
+
     this.zoneState = {
       status: this.platform.Characteristic.CurrentMediaState.PAUSE,
       volume: 0,
@@ -41,7 +51,7 @@ export class PluginPlatformAccessory {
     // Set up socket connection
     const zone = this.accessory.context.zone;
     if (!zone.host) {
-      this.platform.log.error(`Could not set up socket for Zone. No host info: ${this.accessory.context}`);
+      this.log.error('Could not set up socket for Zone. No host info:', this.accessory.context);
     }
     this.socket = io.connect(`${zone.host}:3000`);
     this.socketManagement();
@@ -81,21 +91,20 @@ export class PluginPlatformAccessory {
   }
 
   socketManagement(): void {
-    const zone = this.accessory.context.zone;
     this.socket.on('connect', () => {
-      this.platform.log.info(`Zone socket connected: ${zone.name}`);
+      this.log.info('Zone socket connected');
     });
     this.socket.on('reconnect', () => {
-      this.platform.log.info(`Zone socket reconnected: ${zone.name}`);
+      this.log.info('Zone socket reconnected');
     });
     this.socket.on('disconnect', () => {
-      this.platform.log.info(`Zone socket disconnected: ${zone.name}`);
+      this.log.warn('Zone socket disconnected');
     });
     this.socket.on('connect_error', () => {
-      this.platform.log.error(`Zone socket connection error: ${zone.name}`);
+      this.log.error('Zone socket connection error');
     });
     this.socket.on('reconnect_failed', () => {
-      this.platform.log.error(`Zone socket reconnection failed: ${zone.name}`);
+      this.log.error('Zone socket reconnection failed');
     });
   }
 
@@ -103,25 +112,25 @@ export class PluginPlatformAccessory {
    * Update local and Homebridge data from socket publish
    */
   updateZoneState(data: VolumioAPIState): void {
-    this.platform.log.debug(`Recieved socket publish: ${JSON.stringify(data)}`);
+    this.log.debug('Recieved socket publish:', JSON.stringify(data));
     const convertedData = this.convertVolumioAPIStateToZoneState(data);
     
-    this.platform.log.info(`Converted Data: ${JSON.stringify(convertedData)}`);
-    this.platform.log.info(`Current state: ${JSON.stringify(this.zoneState)}`);
+    this.log.debug('Converted Data:', JSON.stringify(convertedData));
+    this.log.debug('Current state:', JSON.stringify(this.zoneState));
     
     // Only update if returned data is different than current stored state
     if (convertedData.status !== this.zoneState.status) {
-      this.platform.log.info('Updating status');
+      this.log.debug('Updating status');
       this.zoneState.status = convertedData.status;
       this.service.getCharacteristic(this.platform.Characteristic.CurrentMediaState).updateValue(this.zoneState.status);
     }
     if (convertedData.volume !== this.zoneState.volume) {
-      this.platform.log.info('Updating volume');
+      this.log.debug('Updating volume');
       this.zoneState.volume = convertedData.volume;
       this.service.getCharacteristic(this.platform.Characteristic.Volume).updateValue(this.zoneState.volume);
     }
     if (convertedData.muted !== this.zoneState.muted) {
-      this.platform.log.info('Updating muted');
+      this.log.debug('Updating muted');
       this.zoneState.muted = convertedData.muted;
       this.service.getCharacteristic(this.platform.Characteristic.Mute).updateValue(this.zoneState.muted);
     }
@@ -130,8 +139,8 @@ export class PluginPlatformAccessory {
   /**
  * Get the targetMediaState.
  */
-  getTargetMediaState(callback: CharacteristicGetCallback) {
-    this.platform.log.info('GET TargetMediaState:', this.zoneState.status);
+  getTargetMediaState(callback: CharacteristicGetCallback): void {
+    this.log.debug('GET TargetMediaState:', this.zoneState.status);
     callback(undefined, this.zoneState.status);
   }
 
@@ -139,8 +148,8 @@ export class PluginPlatformAccessory {
  * Set the targetMediaState.
  * Toggle play/pause
  */
-  setTargetMediaState(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    this.platform.log.info('SET TargetMediaState:', value);
+  setTargetMediaState(value: CharacteristicValue, callback: CharacteristicSetCallback): void {
+    this.log.debug('SET TargetMediaState:', value);
 
     this.zoneState.status = value;
 
@@ -155,16 +164,16 @@ export class PluginPlatformAccessory {
   /**
  * Get the Volume.
  */
-  getVolume(callback: CharacteristicGetCallback) {
-    this.platform.log.info('GET Volume:', this.zoneState.volume);
+  getVolume(callback: CharacteristicGetCallback): void {
+    this.log.debug('GET Volume:', this.zoneState.volume);
     callback(undefined, this.zoneState.volume);
   }
 
   /**
    * Set the Volume.
    */
-  setVolume(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    this.platform.log.info('SET Volume:', value);
+  setVolume(value: CharacteristicValue, callback: CharacteristicSetCallback): void {
+    this.log.debug('SET Volume:', value);
 
     this.zoneState.volume = volumeClamp(<number>value);
 
@@ -176,16 +185,16 @@ export class PluginPlatformAccessory {
   /**
  * Get the Mute state.
  */
-  getMute(callback: CharacteristicGetCallback) {
-    this.platform.log.info('GET Muted:', this.zoneState.muted);
+  getMute(callback: CharacteristicGetCallback): void {
+    this.log.debug('GET Muted:', this.zoneState.muted);
     callback(undefined, this.zoneState.muted);
   }
 
   /**
    * Set the Volume.
    */
-  setMute(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    this.platform.log.info('SET Mute:', value);
+  setMute(value: CharacteristicValue, callback: CharacteristicSetCallback): void {
+    this.log.debug('SET Mute:', value);
 
     this.zoneState.muted = <boolean>value;
 
