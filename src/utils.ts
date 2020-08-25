@@ -54,6 +54,14 @@ export async function getVolumioAPIData<T>(url: string): Promise<GetVolumioAPIDa
   return returnObj;
 }
 
+export function prettifyDisplayName(name: string): string {
+  const wordArray = name.toLowerCase().split('-');
+  for (let i = 0; i < wordArray.length; i++) {
+    wordArray[i] = wordArray[i][0].toUpperCase() + wordArray[i].slice(1);
+  }
+  return wordArray.join(' ');
+}
+
 export function volumeClamp(volume: number): number {
   volume = Math.round(volume);
   volume = Math.min(volume, 0);

@@ -10,8 +10,7 @@ import {
 
 import { PLUGIN_NAME } from './settings';
 import { PluginPlatformAccessory } from './platformAccessory';
-import { getVolumioAPIData, VolumioAPIZoneStates } from './utils';
-
+import { getVolumioAPIData, prettifyDisplayName, VolumioAPIZoneStates } from './utils';
 
 /**
  * Add Volumio Zones as accessories.
@@ -59,9 +58,10 @@ export class PluginPlatform implements DynamicPlatformPlugin {
 
       this.log.info(`${data.zones.length} Volumio zone${data.zones.length === 1 ? '' : 's'} discovered`);
 
-      // strip states before saving to disk
+      // Clean up data before saving to disk
       data.zones.forEach(zone => {
         delete zone.state;
+        zone.name = prettifyDisplayName(zone.name);
       });
 
       this.zones = data.zones;
@@ -82,7 +82,6 @@ export class PluginPlatform implements DynamicPlatformPlugin {
       // Use Roons output_id to create the UUID. This will ensure the accessory is always in sync.
       const uuid = this.api.hap.uuid.generate(zone.id);
 
-      
       const accessory = new this.api.platformAccessory(zone.name, uuid);
       accessory.context.zone = zone;
       // Adding 26 as the category is some special sauce that gets this to work properly.
