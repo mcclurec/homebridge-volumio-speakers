@@ -35,7 +35,7 @@ export class PluginPlatform implements DynamicPlatformPlugin {
     };
 
     this.api.on('didFinishLaunching', () => {
-      this.log.info('Finished initializing platform:', this.config.name);
+      this.log.info('Finished initializing platform');
       this.discoverZones();
     });
   }
@@ -76,26 +76,26 @@ export class PluginPlatform implements DynamicPlatformPlugin {
    * Use the returned value of get_outputs to create the speaker accessories.
    */
   addAccessories() {
-    this.log.info(`Adding Volumio zone${this.zones.length === 1 ? '' : 's'}`);
+    this.log.info(`Adding zone${this.zones.length === 1 ? '' : 's'}...`);
 
     for (const zone of this.zones) {
       // Use Roons output_id to create the UUID. This will ensure the accessory is always in sync.
       const uuid = this.api.hap.uuid.generate(zone.id);
 
-      this.log.info(`Adding/updating Volumio zone: ${zone.name}`);
-
+      
       const accessory = new this.api.platformAccessory(zone.name, uuid);
       accessory.context.zone = zone;
       // Adding 26 as the category is some special sauce that gets this to work properly.
       // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-623675893
       accessory.category = 26;
-
+      
       new PluginPlatformAccessory(this, accessory);
-
+      
       // SmartSpeaker service must be added as an external accessory.
       // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-622961035
       // There a no collision issues when calling this multiple times on accessories that already exist.
       this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
+      this.log.info(`${zone.name} added`);
     }
   }
 
