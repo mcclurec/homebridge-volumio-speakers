@@ -103,7 +103,7 @@ export class PluginPlatformAccessory {
    * Update local and Homebridge data from socket publish
    */
   updateZoneState(data: VolumioAPIState): void {
-    this.platform.log.info(`Recieved socket publish: ${JSON.stringify(data)}`);
+    this.platform.log.debug(`Recieved socket publish: ${JSON.stringify(data)}`);
     const convertedData = this.convertVolumioAPIStateToZoneState(data);
     
     this.platform.log.info(`Converted Data: ${JSON.stringify(convertedData)}`);
@@ -145,9 +145,11 @@ export class PluginPlatformAccessory {
     this.zoneState.status = value;
 
     const convertedState = this.convertCharacteristicValueToVolumioStatus(this.zoneState.status);
-    this.socket.emit(convertedState, '');
+    this.socket.emit(convertedState);
 
     callback(undefined, this.zoneState.status);
+
+    this.service.getCharacteristic(this.platform.Characteristic.CurrentMediaState).updateValue(this.zoneState.status);
   }
 
   /**
