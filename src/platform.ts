@@ -7,13 +7,18 @@ import {
   Service,
   Characteristic,
 } from 'homebridge';
-
+import io from 'socket.io-client';
 import { PLUGIN_NAME } from './settings';
 import { PluginPlatformAccessory } from './platformAccessory';
-import { getVolumioAPIData, prettifyDisplayName, VolumioAPIZoneStates } from './utils';
+import {
+  prettifyDisplayName,
+  socketManagement,
+  VolumioAPIMultiroom,
+  VolumioAPIZoneState,
+} from './utils';
 
 /**
- * Add Volumio Zones as accessories.
+ * Volumio Speakers Platform.
  */
 export class PluginPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
@@ -22,7 +27,7 @@ export class PluginPlatform implements DynamicPlatformPlugin {
   // This is used to track restored cached accessories
   public readonly accessories: PlatformAccessory[] = [];
 
-  public zones;
+  private socket: SocketIOClient.Socket;
 
   constructor(
     public readonly log: Logger,
@@ -33,70 +38,74 @@ export class PluginPlatform implements DynamicPlatformPlugin {
       ...config,
     };
 
+    // Set up socket connection
+    const socketURL = this.config.serverURL;
+    if (!socketURL) {
+      this.log.error('Could not set up socket for Platform. serverURL not set in config:', this.config.serverURL);
+    }
+    this.socket = io.connect(`${socketURL}:3000`);
+    socketManagement(this.socket, this.log);
+
+    // Get initial state and listen for updates
+    this.log.info('Discovering Volumio zones...');
+    this.socket.on('pushMultiRoomDevices', this.discoverZones.bind(this));
+    this.socket.emit('getMultiRoomDevices', '');
+
     this.api.on('didFinishLaunching', () => {
       this.log.info('Finished initializing platform');
-      this.discoverZones();
     });
   }
 
   /**
-   * Use the getZones rest API to retrieve all zones
-   * @see https://volumio.github.io/docs/API/REST_API.html
-   */
-  async discoverZones() {
-    try {
-      this.log.info('Discovering Volumio zones...');
-
-      const url = `${this.config.serverURL}/api/v1/getzones`;
-      const { error, data } = await getVolumioAPIData<VolumioAPIZoneStates>(url);
-
-      if (error || !data) {
-        this.log.error(`Error discovering Volumio zones: ${error}`);
-        this.log.error(`Data: ${data}`);
-        return;
+ * Use the getMultiRoomDevices event to retrieve all zones
+ * @see https://volumio.github.io/docs/API/WebSocket_APIs.html
+ */
+  discoverZones(data: VolumioAPIMultiroom) {
+    data.list.forEach(zone => {
+      // Clean up data before saving to disk
+      delete zone.state;
+      zone.name = prettifyDisplayName(zone.name);
+      
+      // Add new zone
+      const matchedAccessory = this.accessories.find(accessory => accessory.UUID === zone.id);
+      if (!matchedAccessory) {
+        this.addAccessory(zone);
       }
 
-      this.log.info(`${data.zones.length} Volumio zone${data.zones.length === 1 ? '' : 's'} discovered`);
+      if (matchedAccessory && matchedAccessory?.displayName !== zone.name) {
+        // update name
+      }
+      if (matchedAccessory && matchedAccessory?.context?.zone.host !== zone.host) {
+        // update host
+      }
+    });
 
-      // Clean up data before saving to disk
-      data.zones.forEach(zone => {
-        delete zone.state;
-        zone.name = prettifyDisplayName(zone.name);
-      });
-
-      this.zones = data.zones;
-
-      this.addAccessories();
-    } catch (err) {
-      this.log.error(`Fatal discovering Volumio zones: ${err}`);
-    }
+    // Remove old zones
+    // No way to delete external accessories
   }
 
   /**
-   * Use the returned value of get_outputs to create the speaker accessories.
+   * Publish external accessory from Volumio Zone data
    */
-  addAccessories() {
-    this.log.info(`Adding zone${this.zones.length === 1 ? '' : 's'}...`);
+  addAccessory(zone: VolumioAPIZoneState) {
+    const accessory = new this.api.platformAccessory(zone.name, zone.id);
+    // Store raw data
+    accessory.context.zone = zone;
 
-    for (const zone of this.zones) {
-      // Use Roons output_id to create the UUID. This will ensure the accessory is always in sync.
-      const uuid = this.api.hap.uuid.generate(zone.id);
+    // Adding 26 as the category is some special sauce that gets this to work properly.
+    // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-623675893
+    accessory.category = 26;
 
-      const accessory = new this.api.platformAccessory(zone.name, uuid);
-      accessory.context.zone = zone;
-      // Adding 26 as the category is some special sauce that gets this to work properly.
-      // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-623675893
-      accessory.category = 26;
-      
-      new PluginPlatformAccessory(this, accessory);
-      
-      // SmartSpeaker service must be added as an external accessory.
-      // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-622961035
-      // There a no collision issues when calling this multiple times on accessories that already exist.
-      this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
-      this.log.info(`${zone.name} added`);
-    }
-  }
+    new PluginPlatformAccessory(this, accessory);
+
+    this.accessories.push(accessory);
+
+    // SmartSpeaker service must be added as an external accessory.
+    // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-622961035
+    // There a no collision issues when calling this multiple times on accessories that already exist.
+    this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
+    this.log.info(zone.name, 'added');
+  }    
 
   /**
    * This function is invoked when homebridge restores cached accessories from disk at startup.

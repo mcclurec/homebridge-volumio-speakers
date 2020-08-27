@@ -8,7 +8,8 @@ import {
   Logger,
 } from 'homebridge';
 import { PluginPlatform } from './platform';
-import { 
+import {
+  socketManagement,
   volumeClamp,
   VolumioAPIState,
   VolumioAPIStatus,
@@ -34,7 +35,7 @@ export class PluginPlatformAccessory {
     private readonly platform: PluginPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
-    const logPrefix = `${this.accessory.context.zone.name}:`;
+    const logPrefix = `${this.accessory.displayName}:`;
     this.log = <Logger>{
       info: (...args) => this.platform.log.info(logPrefix, ...args),
       debug: (...args) => this.platform.log.debug(logPrefix, ...args),
@@ -49,12 +50,12 @@ export class PluginPlatformAccessory {
     };
 
     // Set up socket connection
-    const zone = this.accessory.context.zone;
-    if (!zone.host) {
+    const socketURL = this.accessory?.context?.zone?.host;
+    if (!socketURL) {
       this.log.error('Could not set up socket for Zone. No host info:', this.accessory.context);
     }
-    this.socket = io.connect(`${zone.host}:3000`);
-    this.socketManagement();
+    this.socket = io.connect(`${socketURL}:3000`);
+    socketManagement(this.socket, this.log);
 
     // Get initial state and listen for updates
     this.socket.emit('getState', '');
@@ -64,7 +65,7 @@ export class PluginPlatformAccessory {
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Volumio')
       .setCharacteristic(this.platform.Characteristic.Model, 'Zone')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.zone.id);
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.UUID);
 
     this.service =
         this.accessory.getService(this.platform.Service.SmartSpeaker)
@@ -88,24 +89,6 @@ export class PluginPlatformAccessory {
     this.service.getCharacteristic(this.platform.Characteristic.Mute)
       .on(CharacteristicEventTypes.SET, this.setMute.bind(this))
       .on(CharacteristicEventTypes.GET, this.getMute.bind(this));
-  }
-
-  socketManagement(): void {
-    this.socket.on('connect', () => {
-      this.log.info('Zone socket connected');
-    });
-    this.socket.on('reconnect', () => {
-      this.log.info('Zone socket reconnected');
-    });
-    this.socket.on('disconnect', () => {
-      this.log.warn('Zone socket disconnected');
-    });
-    this.socket.on('connect_error', () => {
-      this.log.error('Zone socket connection error');
-    });
-    this.socket.on('reconnect_failed', () => {
-      this.log.error('Zone socket reconnection failed');
-    });
   }
 
   /**
