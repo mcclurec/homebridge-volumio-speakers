@@ -61,27 +61,31 @@ export class PluginPlatform implements DynamicPlatformPlugin {
  * @see https://volumio.github.io/docs/API/WebSocket_APIs.html
  */
   discoverZones(data: VolumioAPIMultiroom) {
-    data.list.forEach(zone => {
-      // Clean up data before saving to disk
-      delete zone.state;
-      zone.name = prettifyDisplayName(zone.name);
-      
-      // Add new zone
-      const matchedAccessory = this.accessories.find(accessory => accessory.UUID === zone.id);
-      if (!matchedAccessory) {
-        this.addAccessory(zone);
-      }
+    try {
+      data.list.forEach(zone => {
+        // Clean up data before saving to disk
+        delete zone.state;
+        zone.name = prettifyDisplayName(zone.name);
+        
+        // Add new zone
+        const matchedAccessory = this.accessories.find(accessory => accessory.UUID === zone.id);
+        if (!matchedAccessory) {
+          this.addAccessory(zone);
+        }
 
-      if (matchedAccessory && matchedAccessory?.displayName !== zone.name) {
-        // update name
-      }
-      if (matchedAccessory && matchedAccessory?.context?.zone.host !== zone.host) {
-        // update host
-      }
-    });
+        if (matchedAccessory && matchedAccessory?.displayName !== zone.name) {
+          // update name
+        }
+        if (matchedAccessory && matchedAccessory?.context?.zone.host !== zone.host) {
+          // update host
+        }
+      });
 
-    // Remove old zones
-    // No way to delete external accessories
+      // Remove old zones
+      // No way to delete external accessories
+    } catch (err) {
+      this.log.error('Fatal:', err);
+    }
   }
 
   /**
