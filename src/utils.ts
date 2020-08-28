@@ -68,26 +68,12 @@ export interface VolumioAPIZoneState {
   state?: VolumioAPIState;
 }
 
-// export interface VolumioAPIZoneStates {
-//   zones: VolumioAPIZoneState[];
-// }
-
 export interface VolumioAPIMultiroom {
   misc: {
     debug: boolean,
   },
   list: VolumioAPIZoneState[],
 }
-
-// export interface VolumioAPICommandResponse {
-//   time: number;
-//   response: string;
-// }
-
-// export interface GetVolumioAPIData<T> {
-//   error: Error | null;
-//   data?: T;
-// }
 
 export enum VolumioAPIStatus {
   PLAY = 'play',

@@ -63,20 +63,16 @@ export class PluginPlatform implements DynamicPlatformPlugin {
   discoverZones(data: VolumioAPIMultiroom) {
     try {
       data.list.forEach(zone => {
-        // Clean up data before saving to disk
-        delete zone.state;
-        zone.name = prettifyDisplayName(zone.name);
-        
-        // Add new zone
+        // Add new zone if it doesn't exist yet
         const matchedAccessory = this.accessories.find(accessory => accessory.UUID === zone.id);
         if (!matchedAccessory) {
           this.addAccessory(zone);
         }
 
-        if (matchedAccessory && matchedAccessory?.displayName !== zone.name) {
+        if (matchedAccessory && matchedAccessory?.displayName !== prettifyDisplayName(zone.name)) {
           // update name
         }
-        if (matchedAccessory && matchedAccessory?.context?.zone.host !== zone.host) {
+        if (matchedAccessory && matchedAccessory?.context?.host !== zone.host) {
           // update host
         }
       });
@@ -92,9 +88,11 @@ export class PluginPlatform implements DynamicPlatformPlugin {
    * Publish external accessory from Volumio Zone data
    */
   addAccessory(zone: VolumioAPIZoneState) {
-    const accessory = new this.api.platformAccessory(zone.name, zone.id);
-    // Store raw data
-    accessory.context.zone = zone;
+    const displayName = prettifyDisplayName(zone.name);
+    const accessory = new this.api.platformAccessory(displayName, zone.id);
+
+    // Store host IP
+    accessory.context.host = zone.host;
 
     // Adding 26 as the category is some special sauce that gets this to work properly.
     // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-623675893
@@ -108,7 +106,7 @@ export class PluginPlatform implements DynamicPlatformPlugin {
     // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-622961035
     // There a no collision issues when calling this multiple times on accessories that already exist.
     this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
-    this.log.info(zone.name, 'added');
+    this.log.info(accessory.displayName, 'added');
   }    
 
   /**

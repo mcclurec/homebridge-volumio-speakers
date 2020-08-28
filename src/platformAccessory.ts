@@ -50,9 +50,9 @@ export class PluginPlatformAccessory {
     };
 
     // Set up socket connection
-    const socketURL = this.accessory?.context?.zone?.host;
+    const socketURL = this.accessory?.context?.host;
     if (!socketURL) {
-      this.log.error('Could not set up socket for Zone. No host info:', this.accessory.context);
+      this.log.error('Could not set up socket for Zone. No host info:', JSON.stringify(this.accessory.context));
     }
     this.socket = io.connect(`${socketURL}:3000`);
     socketManagement(this.socket, this.log);
