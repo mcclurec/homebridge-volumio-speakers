@@ -25,7 +25,7 @@ export class PluginPlatform implements DynamicPlatformPlugin {
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
 
   // This is used to track restored cached accessories
-  public readonly accessories: PlatformAccessory[] = [];
+  public readonly accessories: { [key: string]: PluginPlatformAccessory } = {};
 
   private socket: SocketIOClient.Socket;
 
@@ -63,17 +63,22 @@ export class PluginPlatform implements DynamicPlatformPlugin {
   discoverZones(data: VolumioAPIMultiroom) {
     try {
       data.list.forEach(zone => {
+        const matchedAccessory = this.accessories[zone.id];
         // Add new zone if it doesn't exist yet
-        const matchedAccessory = this.accessories.find(accessory => accessory.UUID === zone.id);
         if (!matchedAccessory) {
           this.addAccessory(zone);
+          return;
         }
 
-        if (matchedAccessory && matchedAccessory?.displayName !== prettifyDisplayName(zone.name)) {
-          // update name
+        // Update name if changed in Volumio
+        const prettyZoneName = prettifyDisplayName(zone.name);
+        if (matchedAccessory.accessory.displayName !== prettyZoneName) {
+          matchedAccessory.updateDisplayName(prettyZoneName);
         }
-        if (matchedAccessory && matchedAccessory?.context?.host !== zone.host) {
-          // update host
+
+        // Update host if changed in Volumio
+        if (matchedAccessory.accessory.context.host !== zone.host) {
+          matchedAccessory.updateHost(zone.host);
         }
       });
 
@@ -93,14 +98,18 @@ export class PluginPlatform implements DynamicPlatformPlugin {
 
     // Store host IP
     accessory.context.host = zone.host;
+    if (!zone.host) {
+      this.log.error('Could not create accessory from Zone. No host info:', JSON.stringify(zone));
+      return; 
+    }
 
     // Adding 26 as the category is some special sauce that gets this to work properly.
     // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-623675893
     accessory.category = 26;
 
-    new PluginPlatformAccessory(this, accessory);
+    const pluginAccessory = new PluginPlatformAccessory(this, accessory);
 
-    this.accessories.push(accessory);
+    this.accessories[accessory.UUID] = pluginAccessory;
 
     // SmartSpeaker service must be added as an external accessory.
     // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-622961035
@@ -115,8 +124,6 @@ export class PluginPlatform implements DynamicPlatformPlugin {
    * so this won't ever get called.
    */
   configureAccessory(accessory: PlatformAccessory) {
-    this.log.info('Loading accessory from cache:', accessory.displayName);
-    this.accessories.push(accessory);
+    this.log.info('Volumio accessories are external: Skipping...:', accessory.displayName);
   }
-
 }

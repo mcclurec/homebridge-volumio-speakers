@@ -33,7 +33,7 @@ export class PluginPlatformAccessory {
 
   constructor(
     private readonly platform: PluginPlatform,
-    private readonly accessory: PlatformAccessory,
+    public readonly accessory: PlatformAccessory,
   ) {
     const logPrefix = `${this.accessory.displayName}:`;
     this.log = <Logger>{
@@ -50,16 +50,13 @@ export class PluginPlatformAccessory {
     };
 
     // Set up socket connection
-    const socketURL = this.accessory?.context?.host;
-    if (!socketURL) {
-      this.log.error('Could not set up socket for Zone. No host info:', JSON.stringify(this.accessory.context));
-    }
-    this.socket = io.connect(`${socketURL}:3000`);
+    const host = this.accessory.context.host;
+    this.socket = io.connect(`${host}:3000`);
     socketManagement(this.socket, this.log);
 
     // Get initial state and listen for updates
-    this.socket.emit('getState', '');
     this.socket.on('pushState', this.updateZoneState.bind(this));
+    this.socket.emit('getState', '');
 
 
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
@@ -89,6 +86,32 @@ export class PluginPlatformAccessory {
     this.service.getCharacteristic(this.platform.Characteristic.Mute)
       .on(CharacteristicEventTypes.SET, this.setMute.bind(this))
       .on(CharacteristicEventTypes.GET, this.getMute.bind(this));
+  }
+
+  /**
+   * Update zone host if network condition changes
+   */
+  public updateHost(host: string): void {
+    this.accessory.context.host = host;
+    
+    // Do socket disconnect/reconnect
+    this.socket.off('pushState');
+    this.socket.disconnect();
+
+    this.socket = io.connect(`${host}:3000`);
+    socketManagement(this.socket, this.log);
+
+    // Get initial state and listen for updates
+    this.socket.on('pushState', this.updateZoneState.bind(this));
+    this.socket.emit('getState', '');
+  }
+
+  /**
+   * Update display name shown in Homekit
+   */
+  public updateDisplayName(name: string): void {
+    this.accessory.displayName = name;
+    this.service.getCharacteristic(this.platform.Characteristic.ConfiguredName).updateValue(this.accessory.displayName);
   }
 
   /**
