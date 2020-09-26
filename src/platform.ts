@@ -7,23 +7,27 @@ import {
   Service,
   Characteristic,
 } from 'homebridge';
-
+import io from 'socket.io-client';
 import { PLUGIN_NAME } from './settings';
 import { PluginPlatformAccessory } from './platformAccessory';
-import { getVolumioAPIData, VolumioAPIZoneStates } from './utils';
-
+import {
+  prettifyDisplayName,
+  socketManagement,
+  VolumioAPIMultiroom,
+  VolumioAPIZoneState,
+} from './utils';
 
 /**
- * Add Volumio Zones as accessories.
+ * Volumio Speakers Platform.
  */
 export class PluginPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
 
   // This is used to track restored cached accessories
-  public readonly accessories: PlatformAccessory[] = [];
+  public readonly accessories: { [key: string]: PluginPlatformAccessory } = {};
 
-  public zones;
+  private socket: SocketIOClient.Socket;
 
   constructor(
     public readonly log: Logger,
@@ -34,70 +38,90 @@ export class PluginPlatform implements DynamicPlatformPlugin {
       ...config,
     };
 
+    // Set up socket connection
+    const socketURL = this.config.serverURL;
+    if (!socketURL) {
+      this.log.error('Could not set up socket for Platform. serverURL not set in config:', this.config.serverURL);
+    }
+    this.socket = io.connect(`${socketURL}:3000`);
+    socketManagement(this.socket, this.log);
+
+    // Get initial state and listen for updates
+    this.log.info('Discovering Volumio zones...');
+    this.socket.on('pushMultiRoomDevices', this.discoverZones.bind(this));
+    this.socket.emit('getMultiRoomDevices', '');
+
     this.api.on('didFinishLaunching', () => {
-      this.log.info('Finished initializing platform:', this.config.name);
-      this.discoverZones();
+      this.log.info('Finished initializing platform');
     });
   }
 
   /**
-   * Use the getZones rest API to retrieve all zones
-   * @see https://volumio.github.io/docs/API/REST_API.html
-   */
-  async discoverZones() {
+ * Use the getMultiRoomDevices event to retrieve all zones
+ * @see https://volumio.github.io/docs/API/WebSocket_APIs.html
+ */
+  discoverZones(data: VolumioAPIMultiroom) {
     try {
-      this.log.info('Discovering Volumio zones...');
+      data.list.forEach(zone => {
+        this.log.debug('Recieved zone data:', JSON.stringify(zone));
+        const matchedAccessory = this.accessories[zone.id];
+        // Add new zone if it doesn't exist yet
+        if (!matchedAccessory) {
+          this.addAccessory(zone);
+          return;
+        }
 
-      const url = `${this.config.serverURL}/api/v1/getzones`;
-      const { error, data } = await getVolumioAPIData<VolumioAPIZoneStates>(url);
+        // Update name if changed in Volumio
+        const prettyZoneName = prettifyDisplayName(zone.name);
+        this.log.debug('Incoming zone name:', zone.name);
+        this.log.debug('Incoming zone pretty name:', prettyZoneName);
+        this.log.debug('Stored zone name:', matchedAccessory.accessory.displayName);
+        if (matchedAccessory.accessory.displayName !== prettyZoneName) {
+          matchedAccessory.updateDisplayName(prettyZoneName);
+        }
 
-      if (error || !data) {
-        this.log.error(`Error discovering Volumio zones: ${error}`);
-        this.log.error(`Data: ${data}`);
-        return;
-      }
-
-      this.log.info(`${data.zones.length} Volumio zone${data.zones.length === 1 ? '' : 's'} discovered`);
-
-      // strip states before saving to disk
-      data.zones.forEach(zone => {
-        delete zone.state;
+        // Update host if changed in Volumio
+        this.log.debug('Incoming zone host:', zone.host);
+        this.log.debug('Stored zone host:', matchedAccessory.accessory.context.host);
+        if (matchedAccessory.accessory.context.host !== zone.host) {
+          matchedAccessory.updateHost(zone.host);
+        }
       });
 
-      this.zones = data.zones;
-
-      this.addAccessories();
+      // Remove old zones
+      // No way to delete external accessories
     } catch (err) {
-      this.log.error(`Fatal discovering Volumio zones: ${err}`);
+      this.log.error('Fatal:', err);
     }
   }
 
   /**
-   * Use the returned value of get_outputs to create the speaker accessories.
+   * Publish external accessory from Volumio Zone data
    */
-  addAccessories() {
-    this.log.info(`Adding Volumio zone${this.zones.length === 1 ? '' : 's'}`);
+  addAccessory(zone: VolumioAPIZoneState) {
+    const displayName = prettifyDisplayName(zone.name);
+    const accessory = new this.api.platformAccessory(displayName, zone.id);
 
-    for (const zone of this.zones) {
-      // Use Roons output_id to create the UUID. This will ensure the accessory is always in sync.
-      const uuid = this.api.hap.uuid.generate(zone.id);
+    // Adding 26 as the category is some special sauce that gets this to work properly.
+    // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-623675893
+    accessory.category = 26;
 
-      this.log.info(`Adding/updating Volumio zone: ${zone.name}`);
-
-      const accessory = new this.api.platformAccessory(zone.name, uuid);
-      accessory.context.zone = zone;
-      // Adding 26 as the category is some special sauce that gets this to work properly.
-      // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-623675893
-      accessory.category = 26;
-
-      new PluginPlatformAccessory(this, accessory);
-
-      // SmartSpeaker service must be added as an external accessory.
-      // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-622961035
-      // There a no collision issues when calling this multiple times on accessories that already exist.
-      this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
+    // Store host IP
+    accessory.context.host = zone.host;
+    if (!zone.host) {
+      this.log.error('Could not create accessory from Zone. No host info:', JSON.stringify(zone));
+      return; 
     }
-  }
+
+    const pluginAccessory = new PluginPlatformAccessory(this, accessory);
+    this.accessories[accessory.UUID] = pluginAccessory;
+
+    // SmartSpeaker service must be added as an external accessory.
+    // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-622961035
+    // There a no collision issues when calling this multiple times on accessories that already exist.
+    this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
+    this.log.info(accessory.displayName, 'added');
+  }    
 
   /**
    * This function is invoked when homebridge restores cached accessories from disk at startup.
@@ -105,8 +129,6 @@ export class PluginPlatform implements DynamicPlatformPlugin {
    * so this won't ever get called.
    */
   configureAccessory(accessory: PlatformAccessory) {
-    this.log.info('Loading accessory from cache:', accessory.displayName);
-    this.accessories.push(accessory);
+    this.log.info('Volumio accessories are external: Skipping...:', accessory.displayName);
   }
-
 }

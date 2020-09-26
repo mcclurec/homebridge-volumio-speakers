@@ -1,57 +1,29 @@
-import * as http from 'http';
+import { Logger } from 'homebridge';
 
-export async function getVolumioAPIData<T>(url: string): Promise<GetVolumioAPIData<T>> {
-  const returnObj: GetVolumioAPIData<T> = {
-    error: null,
-  };
-
-  const request = new Promise<T>((resolve, reject) => {
-    http.get(url, res => {
-      const { statusCode } = res;
-      const contentType = res.headers['content-type'] || '';
-
-      let error;
-      // Any 2xx status code signals a successful response but
-      // here we're only checking for 200.
-      if (statusCode !== 200) {
-        error = new Error('Request Failed.\n' +
-          `Status Code: ${statusCode}`);
-      } else if (!/^application\/json/.test(contentType)) {
-        error = new Error('Invalid content-type.\n' +
-          `Expected application/json but received ${contentType}`);
-      }
-      if (error) {
-        // Consume response data to free up memory
-        res.resume();
-        reject(error);
-      }
-
-      res.setEncoding('utf8');
-      let rawData = '';
-      res.on('data', (chunk) => {
-        rawData += chunk; 
-      });
-      res.on('end', () => {
-        try {
-          const parsedData = JSON.parse(rawData);
-          returnObj.data = parsedData;
-          resolve(parsedData);
-        } catch (error) {
-          reject(error);
-        }
-      });
-    }).on('error', (error) => {
-      reject(error);
-    });
+export function socketManagement(socket: SocketIOClient.Socket, logger: Logger): void {
+  socket.on('connect', () => {
+    logger.info('Socket connected');
   });
-
-  await request.then((data) => {
-    returnObj.data = data;
-  }).catch((error) => {
-    returnObj.error = error;
+  socket.on('reconnect', () => {
+    logger.info('Socket reconnected');
   });
+  socket.on('disconnect', () => {
+    logger.warn('Socket disconnected');
+  });
+  socket.on('connect_error', () => {
+    logger.error('Socket connection error');
+  });
+  socket.on('reconnect_failed', () => {
+    logger.error('Socket reconnection failed');
+  });
+}
 
-  return returnObj;
+export function prettifyDisplayName(name: string): string {
+  const wordArray = name.toLowerCase().split('-');
+  for (let i = 0; i < wordArray.length; i++) {
+    wordArray[i] = wordArray[i][0].toUpperCase() + wordArray[i].slice(1);
+  }
+  return wordArray.join(' ');
 }
 
 export function volumeClamp(volume: number): number {
@@ -95,18 +67,12 @@ export interface VolumioAPIZoneState {
   isSelf: boolean;
   state?: VolumioAPIState;
 }
-export interface VolumioAPIZoneStates {
-  zones: VolumioAPIZoneState[];
-}
 
-export interface VolumioAPICommandResponse {
-  time: number;
-  response: string;
-}
-
-export interface GetVolumioAPIData<T> {
-  error: Error | null;
-  data?: T;
+export interface VolumioAPIMultiroom {
+  misc: {
+    debug: boolean,
+  },
+  list: VolumioAPIZoneState[],
 }
 
 export enum VolumioAPIStatus {
