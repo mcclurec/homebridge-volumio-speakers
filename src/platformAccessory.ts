@@ -92,6 +92,7 @@ export class PluginPlatformAccessory {
    * Update zone host if network condition changes
    */
   public updateHost(host: string): void {
+    this.log.info('Updating host IP to:', host);
     this.accessory.context.host = host;
     
     // Do socket disconnect/reconnect
@@ -110,6 +111,7 @@ export class PluginPlatformAccessory {
    * Update display name shown in Homekit
    */
   public updateDisplayName(name: string): void {
+    this.log.info('Updating display name to:', name);
     this.accessory.displayName = name;
     this.service.getCharacteristic(this.platform.Characteristic.ConfiguredName).updateValue(this.accessory.displayName);
   }

@@ -63,6 +63,7 @@ export class PluginPlatform implements DynamicPlatformPlugin {
   discoverZones(data: VolumioAPIMultiroom) {
     try {
       data.list.forEach(zone => {
+        this.log.debug('Recieved zone data:', JSON.stringify(zone));
         const matchedAccessory = this.accessories[zone.id];
         // Add new zone if it doesn't exist yet
         if (!matchedAccessory) {
@@ -72,11 +73,16 @@ export class PluginPlatform implements DynamicPlatformPlugin {
 
         // Update name if changed in Volumio
         const prettyZoneName = prettifyDisplayName(zone.name);
+        this.log.debug('Incoming zone name:', zone.name);
+        this.log.debug('Incoming zone pretty name:', prettyZoneName);
+        this.log.debug('Stored zone name:', matchedAccessory.accessory.displayName);
         if (matchedAccessory.accessory.displayName !== prettyZoneName) {
           matchedAccessory.updateDisplayName(prettyZoneName);
         }
 
         // Update host if changed in Volumio
+        this.log.debug('Incoming zone host:', zone.host);
+        this.log.debug('Stored zone host:', matchedAccessory.accessory.context.host);
         if (matchedAccessory.accessory.context.host !== zone.host) {
           matchedAccessory.updateHost(zone.host);
         }
@@ -96,6 +102,10 @@ export class PluginPlatform implements DynamicPlatformPlugin {
     const displayName = prettifyDisplayName(zone.name);
     const accessory = new this.api.platformAccessory(displayName, zone.id);
 
+    // Adding 26 as the category is some special sauce that gets this to work properly.
+    // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-623675893
+    accessory.category = 26;
+
     // Store host IP
     accessory.context.host = zone.host;
     if (!zone.host) {
@@ -103,12 +113,7 @@ export class PluginPlatform implements DynamicPlatformPlugin {
       return; 
     }
 
-    // Adding 26 as the category is some special sauce that gets this to work properly.
-    // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-623675893
-    accessory.category = 26;
-
     const pluginAccessory = new PluginPlatformAccessory(this, accessory);
-
     this.accessories[accessory.UUID] = pluginAccessory;
 
     // SmartSpeaker service must be added as an external accessory.
