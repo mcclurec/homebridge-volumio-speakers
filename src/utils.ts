@@ -2,16 +2,19 @@ import { Logger } from 'homebridge';
 
 export function socketManagement(socket: SocketIOClient.Socket, logger: Logger): void {
   socket.on('connect', () => {
-    logger.info('Socket connected');
+    logger.info('Socket connected:', socket.io.uri);
   });
-  socket.on('reconnect', () => {
-    logger.info('Socket reconnected');
+  socket.on('reconnect_attempt', (attemptNumber: number) => {
+    logger.info('Socket reconnecting... Attempt:', attemptNumber);
   });
-  socket.on('disconnect', () => {
-    logger.warn('Socket disconnected');
+  socket.on('disconnect', (reason: string) => {
+    logger.warn('Socket disconnected:', reason);
   });
-  socket.on('connect_error', () => {
-    logger.error('Socket connection error');
+  socket.on('connect_error', (err: Error) => {
+    logger.error('Socket connection error:', err.message);
+  });
+  socket.on('reconnect_error', (err: Error) => {
+    logger.error('Socket reconnection error:', err.message);
   });
   socket.on('reconnect_failed', () => {
     logger.error('Socket reconnection failed');
