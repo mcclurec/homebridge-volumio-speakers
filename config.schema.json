@@ -7,7 +7,7 @@
     "properties": {
       "serverURL": {
         "title": "Server URL",
-        "description": "Only one Volumio server URL is required. Other instances/zones will be auto discovered from this one. must include http(s) and no trailing slash.",
+        "description": "Only one Volumio server URL is required. Other instances/zones will be auto discovered from this one. Must include http(s) and no trailing slash.",
         "type": "string",
         "default": "http://volumio.local",
         "pattern": "^https?:\/\/(.*)[^/]$",
