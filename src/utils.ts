@@ -12,9 +12,11 @@ export function socketManagement(socket: SocketIOClient.Socket, logger: Logger):
   });
   socket.on('connect_error', (err: Error) => {
     logger.error('Socket connection error:', err.message);
+    logger.error('Socket connection error:', socket.io.uri, err);
   });
   socket.on('reconnect_error', (err: Error) => {
     logger.error('Socket reconnection error:', err.message);
+    logger.error('Socket reconnection error:', err);
   });
   socket.on('reconnect_failed', () => {
     logger.error('Socket reconnection failed');
