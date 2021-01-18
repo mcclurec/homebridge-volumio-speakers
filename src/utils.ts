@@ -1,5 +1,7 @@
 import { Logger } from 'homebridge';
 
+export const DefaultWebsocketPort = 3000;
+
 export function socketManagement(socket: SocketIOClient.Socket, logger: Logger): void {
   socket.on('connect', () => {
     logger.info('Socket connected:', socket.io.uri);
@@ -11,11 +13,9 @@ export function socketManagement(socket: SocketIOClient.Socket, logger: Logger):
     logger.warn('Socket disconnected:', reason);
   });
   socket.on('connect_error', (err: Error) => {
-    logger.error('Socket connection error:', err.message);
     logger.error('Socket connection error:', socket.io.uri, err);
   });
   socket.on('reconnect_error', (err: Error) => {
-    logger.error('Socket reconnection error:', err.message);
     logger.error('Socket reconnection error:', err);
   });
   socket.on('reconnect_failed', () => {

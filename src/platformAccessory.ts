@@ -9,6 +9,7 @@ import {
 } from 'homebridge';
 import { PluginPlatform } from './platform';
 import {
+  DefaultWebsocketPort,
   socketManagement,
   volumeClamp,
   VolumioAPIState,
@@ -51,7 +52,7 @@ export class PluginPlatformAccessory {
 
     // Set up socket connection
     const host = this.accessory.context.host;
-    this.socket = io.connect(`${host}:3000`);
+    this.socket = io.connect(`${host}:${this.platform.config.serverPort || DefaultWebsocketPort}`);
     socketManagement(this.socket, this.log);
 
     // Get initial state and listen for updates
@@ -99,7 +100,7 @@ export class PluginPlatformAccessory {
     this.socket.off('pushState');
     this.socket.disconnect();
 
-    this.socket = io.connect(`${host}:3000`);
+    this.socket = io.connect(`${host}:${this.platform.config.serverPort || DefaultWebsocketPort}`);
     socketManagement(this.socket, this.log);
 
     // Get initial state and listen for updates
