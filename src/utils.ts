@@ -31,8 +31,8 @@ export function prettifyDisplayName(name: string): string {
 
 export function volumeClamp(volume: number): number {
   volume = Math.round(volume);
-  volume = Math.min(volume, 0);
-  volume = Math.max(volume, 100);
+  volume = Math.min(volume, 100);
+  volume = Math.max(volume, 0);
   return volume;
 }
 
