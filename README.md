@@ -19,9 +19,18 @@ Currently the `SmartSpeaker` service is extremely limited and it only has the fo
 
 - Showing the current status of each output (Playing, paused, or stopped).
 - Pausing/playing each output (unless that output is stopped).
+- Volume setting via Homekit scene (See below for more)
 
 However the `SmartSpeaker` service does show some promise. Although it is all based on Airplay 2, there is a chance (if
 somewhat slim) that we'll also be able to control volume and other transport controls later on.
+
+### How to set volume
+
+Currently, most of the functionality you'd expect from a speaker accessory is handled through the Airplay 2 protocol, which as of th etime of writting, doesn't have an available, open source implementation. That means that when you long press on the Speaker tile in the Home app, you'll see a message stating...
+
+> Controls unavailable for this device
+
+...and controls like pause/play, next/prev track, and the volume slider are greyed out. However, if you create a scene in homekit and include the accessory, you'll have a "Media" and "Audio" option down below the accessories list. In there, you can select a volume to send to the device as long as you're using one of the "Play Audio", "Resume Audio", or "Adjust Volume Only" selections.
 
 ## Installation
 
