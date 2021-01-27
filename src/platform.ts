@@ -11,6 +11,7 @@ import io from 'socket.io-client';
 import { PLUGIN_NAME } from './settings';
 import { PluginPlatformAccessory } from './platformAccessory';
 import {
+  DefaultWebsocketPort,
   prettifyDisplayName,
   socketManagement,
   VolumioAPIMultiroom,
@@ -39,11 +40,10 @@ export class PluginPlatform implements DynamicPlatformPlugin {
     };
 
     // Set up socket connection
-    const socketURL = this.config.serverURL;
-    if (!socketURL) {
+    if (!this.config.serverURL) {
       this.log.error('Could not set up socket for Platform. serverURL not set in config:', this.config.serverURL);
     }
-    this.socket = io.connect(`${socketURL}:3000`);
+    this.socket = io.connect(`${this.config.serverURL}:${this.config.serverPort || DefaultWebsocketPort}`);
     socketManagement(this.socket, this.log);
 
     // Get initial state and listen for updates

@@ -1,5 +1,7 @@
 import { Logger } from 'homebridge';
 
+export const DefaultWebsocketPort = 3000;
+
 export function socketManagement(socket: SocketIOClient.Socket, logger: Logger): void {
   socket.on('connect', () => {
     logger.info('Socket connected:', socket.io.uri);
@@ -11,10 +13,10 @@ export function socketManagement(socket: SocketIOClient.Socket, logger: Logger):
     logger.warn('Socket disconnected:', reason);
   });
   socket.on('connect_error', (err: Error) => {
-    logger.error('Socket connection error:', err.message);
+    logger.error('Socket connection error:', socket.io.uri, err);
   });
   socket.on('reconnect_error', (err: Error) => {
-    logger.error('Socket reconnection error:', err.message);
+    logger.error('Socket reconnection error:', err);
   });
   socket.on('reconnect_failed', () => {
     logger.error('Socket reconnection failed');
@@ -31,8 +33,8 @@ export function prettifyDisplayName(name: string): string {
 
 export function volumeClamp(volume: number): number {
   volume = Math.round(volume);
-  volume = Math.min(volume, 0);
-  volume = Math.max(volume, 100);
+  volume = Math.min(volume, 100);
+  volume = Math.max(volume, 0);
   return volume;
 }
 

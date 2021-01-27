@@ -2,17 +2,45 @@
   "pluginAlias": "Volumio Speakers",
   "pluginType": "platform",
   "singular": true,
+
   "schema": {
     "type": "object",
     "properties": {
       "serverURL": {
         "title": "Server URL",
-        "description": "Only one Volumio server URL is required. Other instances/zones will be auto discovered from this one. Must include http(s) and no trailing slash.",
+        "description": "Only one Volumio server URL is required. Other instances/zones will be auto discovered from this one",
         "type": "string",
         "default": "http://volumio.local",
         "pattern": "^https?:\/\/(.*)[^/]$",
         "required": true
+      },
+      "serverPort": {
+        "title": "Websocket Port",
+        "type": "number",
+        "placeholder": 3000,
+        "minimum": 0,
+        "maximum": 65353
       }
     }
-  }
+  },
+
+  "layout": [
+    {
+      "key": "serverURL",
+      "validationMessage": {
+        "202": "Must include protocol and no trailing slash (e.g. http://volumio.local, https://192.168.1.100, etc)"
+      }
+    },
+    {
+      "type": "section",
+      "title": "Advanced",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        {
+          "key": "serverPort"
+        }
+      ]
+    }
+  ]
 }
