@@ -100,8 +100,9 @@ export class PluginPlatform implements DynamicPlatformPlugin {
    */
   addAccessory(zone: VolumioAPIZoneState) {
     const displayName = prettifyDisplayName(zone.name);
-    const accessory = new this.api.platformAccessory(displayName, zone.id);
-
+    const accessoryUUID = this.api.hap.uuid.generate(zone.id);
+    const accessory = new this.api.platformAccessory(displayName, accessoryUUID);
+    
     // Adding 26 as the category is some special sauce that gets this to work properly.
     // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-623675893
     accessory.category = 26;
