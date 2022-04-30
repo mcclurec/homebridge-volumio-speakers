@@ -21,6 +21,7 @@ interface ZoneState {
   status: CharacteristicValue,
   volume: number,
   muted: boolean,
+  isStream: boolean,
 }
 
 /**
@@ -48,6 +49,7 @@ export class PluginPlatformAccessory {
       status: this.platform.Characteristic.CurrentMediaState.PAUSE,
       volume: 0,
       muted: false,
+      isStream: false,
     };
 
     // Set up socket connection
@@ -127,6 +129,11 @@ export class PluginPlatformAccessory {
     this.log.debug('Converted Data:', JSON.stringify(convertedData));
     this.log.debug('Current state:', JSON.stringify(this.zoneState));
     
+    if (convertedData.isStream !== this.zoneState.isStream) {
+      this.log.debug('Updating isStream');
+      this.zoneState.isStream = convertedData.isStream;
+    }
+
     // Only update if returned data is different than current stored state
     if (convertedData.status !== this.zoneState.status) {
       this.log.debug('Updating status');
@@ -162,8 +169,18 @@ export class PluginPlatformAccessory {
 
     this.zoneState.status = value;
 
-    const convertedState = this.convertCharacteristicValueToVolumioStatus(this.zoneState.status);
-    this.socket.emit(convertedState);
+    let convertedStateStatus = this.convertCharacteristicValueToVolumioStatus(this.zoneState.status);
+          
+    // Replace Pause to Stop if playing webradio since Volumio doesn't handle pausing radio playbeck very well
+    this.log.debug('SET TargetMediaState: this.zoneState.isStream is', this.zoneState.isStream);
+    this.log.debug('SET TargetMediaState: this.zoneState.status is', this.zoneState.status);
+    if (this.zoneState.isStream && this.zoneState.status === this.platform.Characteristic.CurrentMediaState.PAUSE) {
+      this.log.info('Looks like this is webradio. sending STOP instead of PAUSE');
+      convertedStateStatus = VolumioAPIStatus.STOP;
+      this.zoneState.status = this.platform.Characteristic.CurrentMediaState.STOP;
+    }
+
+    this.socket.emit(convertedStateStatus);
 
     callback(undefined, this.zoneState.status);
 
@@ -218,9 +235,24 @@ export class PluginPlatformAccessory {
       status: this.convertVolumioStatusToCharacteristicValue(data.status),
       volume: data.volume,
       muted: data.mute,
+      isStream: this.convertVolumioStreamValueToBool(data?.stream),
     };
 
     return convertedData;
+  }
+
+  /**
+  * Map VolumioAPI's stream property to a bool. Annoyingly, the value is either a bool or a string
+  */
+  convertVolumioStreamValueToBool(value: string | boolean | undefined): boolean {
+    let convertedBool = false;
+    if (typeof value === 'boolean') {
+      convertedBool = value;
+    }
+    if (typeof value === 'string') {
+      convertedBool = true;
+    }
+    return convertedBool;
   }
 
   /**
