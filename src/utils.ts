@@ -39,37 +39,37 @@ export function volumeClamp(volume: number): number {
 }
 
 export interface VolumioAPIState {
+  mute: boolean;
   status: VolumioAPIStatus;
-  position?: number;
-  title?: string;
-  artist?: string;
+  volume: number;
   album?: string;
   albumart?: string;
-  uri?: string;
-  trackType?: string;
-  seek?: number;
-  duration?: number;
-  samplerate?: string;
+  artist?: string;
   bitdepth?: string;
   channels?: number;
+  consume?: boolean;
+  disableVolumeControl?: boolean;
+  duration?: number;
+  position?: number;
   random?: boolean;
   repeat?: boolean;
   repeatSingle?: boolean;
-  consume?: boolean;
-  volume: number;
-  disableVolumeControl?: boolean;
-  mute: boolean;
-  stream?: string;
-  updatedb?: boolean;
-  volatile?: boolean;
+  samplerate?: string;
+  seek?: number;
   service?: string;
+  stream?: string | boolean;
+  title?: string;
+  trackType?: string;
+  updatedb?: boolean;
+  uri?: string;
+  volatile?: boolean;
 }
 
 export interface VolumioAPIZoneState {
   id: string;
   host: string;
-  name: string;
   isSelf: boolean;
+  name: string;
   state?: VolumioAPIState;
 }
 

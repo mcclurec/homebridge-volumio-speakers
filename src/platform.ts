@@ -64,7 +64,9 @@ export class PluginPlatform implements DynamicPlatformPlugin {
     try {
       data.list.forEach(zone => {
         this.log.debug('Recieved zone data:', JSON.stringify(zone));
-        const matchedAccessory = this.accessories[zone.id];
+        this.log.debug('Current stored zones:', this.accessories);
+        const accessoryUUID = this.api.hap.uuid.generate(zone.id);
+        const matchedAccessory = this.accessories[accessoryUUID];
         // Add new zone if it doesn't exist yet
         if (!matchedAccessory) {
           this.addAccessory(zone);
