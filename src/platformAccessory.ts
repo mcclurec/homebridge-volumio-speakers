@@ -25,7 +25,7 @@ interface ZoneState {
 }
 
 /**
- * Volumio Speakers Platform Accessory.
+ * Volumio Speakers Platform Accessory
  */
 export class PluginPlatformAccessory {
   private service: Service;
@@ -153,17 +153,17 @@ export class PluginPlatformAccessory {
   }
 
   /**
- * Get the targetMediaState.
- */
+   * Get the targetMediaState
+   */
   getTargetMediaState(callback: CharacteristicGetCallback): void {
     this.log.debug('GET TargetMediaState:', this.zoneState.status);
     callback(undefined, this.zoneState.status);
   }
 
   /**
- * Set the targetMediaState.
- * Toggle play/pause
- */
+   * Set the targetMediaState
+   * Toggle play/pause
+   */
   setTargetMediaState(value: CharacteristicValue, callback: CharacteristicSetCallback): void {
     this.log.debug('SET TargetMediaState:', value);
 
@@ -188,15 +188,15 @@ export class PluginPlatformAccessory {
   }
 
   /**
- * Get the Volume.
- */
+   * Get the Volume
+   */
   getVolume(callback: CharacteristicGetCallback): void {
     this.log.debug('GET Volume:', this.zoneState.volume);
     callback(undefined, this.zoneState.volume);
   }
 
   /**
-   * Set the Volume.
+   * Set the Volume
    */
   setVolume(value: CharacteristicValue, callback: CharacteristicSetCallback): void {
     this.log.debug('SET Volume:', value);
@@ -209,15 +209,15 @@ export class PluginPlatformAccessory {
   }
 
   /**
- * Get the Mute state.
- */
+   * Get the Mute state
+   */
   getMute(callback: CharacteristicGetCallback): void {
     this.log.debug('GET Muted:', this.zoneState.muted);
     callback(undefined, this.zoneState.muted);
   }
 
   /**
-   * Set the Volume.
+   * Set the Volume
    */
   setMute(value: CharacteristicValue, callback: CharacteristicSetCallback): void {
     this.log.debug('SET Mute:', value);
@@ -242,8 +242,8 @@ export class PluginPlatformAccessory {
   }
 
   /**
-  * Map VolumioAPI's stream property to a bool. Annoyingly, the value is either a bool or a string
-  */
+   * Map VolumioAPI's stream property to a bool. Annoyingly, the value is either a bool or a string
+   */
   convertVolumioStreamValueToBool(value: string | boolean | undefined): boolean {
     let convertedBool = false;
     if (typeof value === 'boolean') {
@@ -256,8 +256,8 @@ export class PluginPlatformAccessory {
   }
 
   /**
-  * Map VolumioAPIStatus -> CharacteristicValue
-  */
+   * Map VolumioAPIStatus -> CharacteristicValue
+   */
   convertVolumioStatusToCharacteristicValue(status: VolumioAPIStatus): CharacteristicValue {
     // These are the state strings returned by Volumio
     switch (status) {
@@ -272,8 +272,8 @@ export class PluginPlatformAccessory {
   }
   
   /**
-  * Map CharacteristicValue -> VolumioAPIStatus
-  */
+   * Map CharacteristicValue -> VolumioAPIStatus
+   */
   convertCharacteristicValueToVolumioStatus(status: CharacteristicValue): VolumioAPIStatus {
     // These are the state strings returned by Volumio
     switch (status) {
