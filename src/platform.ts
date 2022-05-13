@@ -9,7 +9,9 @@ import {
 } from 'homebridge';
 import io from 'socket.io-client';
 import { PLUGIN_NAME } from './settings';
+import { Categories } from 'hap-nodejs';
 import { PluginPlatformAccessory } from './platformAccessory';
+import { PluginSensorAccessory } from './sensorAccessory';
 import {
   DefaultWebsocketPort,
   prettifyDisplayName,
@@ -19,7 +21,7 @@ import {
 } from './utils';
 
 /**
- * Volumio Speakers Platform.
+ * Volumio Speakers Platform
  */
 export class PluginPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
@@ -27,6 +29,7 @@ export class PluginPlatform implements DynamicPlatformPlugin {
 
   // This is used to track restored cached accessories
   public readonly accessories: { [key: string]: PluginPlatformAccessory } = {};
+  public readonly sensorAccessories: { [key: string]: PluginSensorAccessory } = {};
 
   private socket: SocketIOClient.Socket;
 
@@ -57,9 +60,9 @@ export class PluginPlatform implements DynamicPlatformPlugin {
   }
 
   /**
- * Use the getMultiRoomDevices event to retrieve all zones
- * @see https://volumio.github.io/docs/API/WebSocket_APIs.html
- */
+   * Use the getMultiRoomDevices event to retrieve all zones
+   * @see https://volumio.github.io/docs/API/WebSocket_APIs.html
+   */
   discoverZones(data: VolumioAPIMultiroom) {
     try {
       data.list.forEach(zone => {
@@ -103,11 +106,12 @@ export class PluginPlatform implements DynamicPlatformPlugin {
   addAccessory(zone: VolumioAPIZoneState) {
     const displayName = prettifyDisplayName(zone.name);
     const accessoryUUID = this.api.hap.uuid.generate(zone.id);
-    const accessory = new this.api.platformAccessory(displayName, accessoryUUID);
     
-    // Adding 26 as the category is some special sauce that gets this to work properly.
+    // Adding SPEAKER (26) as the category is some special sauce that gets this to work properly.
     // @see https://github.com/homebridge/homebridge/issues/2553#issuecomment-623675893
-    accessory.category = 26;
+    const accessory = new this.api.platformAccessory(displayName, accessoryUUID, Categories.SPEAKER);
+    
+    // accessory.category = 26;
 
     // Store host IP
     accessory.context.host = zone.host;
@@ -124,6 +128,27 @@ export class PluginPlatform implements DynamicPlatformPlugin {
     // There a no collision issues when calling this multiple times on accessories that already exist.
     this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
     this.log.info(accessory.displayName, 'added');
+
+    // ---------------------
+    // Optional dummy sensor setup
+    if (this.config.makeDummySensor) {
+      const sensorDisplayName = `${prettifyDisplayName(zone.name)} Dummy Sensor`;
+      const sensorAccessoryUUID = this.api.hap.uuid.generate(`${zone.id} Dummy Sensor`);
+      const sensorAccessory = new this.api.platformAccessory(sensorDisplayName, sensorAccessoryUUID, Categories.SENSOR);
+
+      // Store host IP
+      sensorAccessory.context.host = zone.host;
+      if (!zone.host) {
+        this.log.error('Could not create sensor accessory from Zone. No host info:', JSON.stringify(zone));
+        return; 
+      }
+
+      const sensorPluginAccessory = new PluginSensorAccessory(this, sensorAccessory);
+      this.sensorAccessories[sensorAccessory.UUID] = sensorPluginAccessory;
+
+      this.api.publishExternalAccessories(PLUGIN_NAME, [sensorAccessory]);
+      this.log.info(sensorAccessory.displayName, 'added');
+    }   
   }    
 
   /**
