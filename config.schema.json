@@ -16,10 +16,17 @@
       },
       "serverPort": {
         "title": "Websocket Port",
+        "description": "Default port for Volumio websocket is 3000. You should only need to change this if you're doing some advanced networking",
         "type": "number",
         "placeholder": 3000,
         "minimum": 0,
         "maximum": 65353
+      },
+      "makeDummySensor": {
+        "title": "Dummy Sensors",
+        "description": "Creates another sensor type accessory for each discovered Volumio Zone. The status of the sensor is true while media is playing. This is used for building automations triggered by Volumio playing music",
+        "type": "boolean",
+        "default": false
       }
     }
   },
@@ -37,9 +44,8 @@
       "expandable": true,
       "expanded": false,
       "items": [
-        {
-          "key": "serverPort"
-        }
+        "makeDummySensor",
+        "serverPort"
       ]
     }
   ]
